@@ -57,22 +57,24 @@ int main(int argc, char *argv[])
     if (FD_ISSET(newsockfd, &active_fd_set)) {
       /* receive and process data here */
       int n;
-      char buffer[256];
+      char buffer[512];
           
-      memset(buffer, 0, 256);    //reset memory
+      memset(buffer, 0, 512);    //reset memory
       
       //read client's message
-      n = read(newsockfd,buffer,255);
+      n = read(newsockfd,buffer,512);
       if (n < 0) error("ERROR reading from socket");
       printf("Here is the message: %s\n",buffer);
      
       //reply to client
       n = write(newsockfd,"I got your message",18);
       if (n < 0) error("ERROR writing to socket");
+      close(newsockfd);//close connection  //TODO: CHECK IF THIS IS THE RIGHT LOCATION
     }
   } // end of while
    
-  close(newsockfd);//close connection 
+  //I believe we should put these somewhere else 
+  
   close(sockfd);
   
   return 0; 
