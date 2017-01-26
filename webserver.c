@@ -46,6 +46,8 @@ int main(int argc, char *argv[])
   while (1) {
     /* Block until some sockets are active. Let N is #sockets+1 in active_fd_set */
     if (select(sockfd + 1, &active_fd_set, NULL, NULL, NULL) < 0) {
+      close(newsockfd);//close connection
+      close(sockfd);
       exit(-1); // error
     }
     /* Now some sockets are active */
@@ -63,19 +65,24 @@ int main(int argc, char *argv[])
       
       //read client's message
       n = read(newsockfd,buffer,512);
-      if (n < 0) error("ERROR reading from socket");
+      if (n < 0){
+        close(newsockfd);//close connection
+        close(sockfd);
+        error("ERROR reading from socket");
+      }
       printf("Here is the message: %s\n",buffer);
      
       //reply to client
       n = write(newsockfd,"I got your message",18);
-      if (n < 0) error("ERROR writing to socket");
-      close(newsockfd);//close connection  //TODO: CHECK IF THIS IS THE RIGHT LOCATION
+      if (n < 0){
+        close(newsockfd);//close connection
+        close(sockfd);        
+        error("ERROR writing to socket");
+      }
     }
-  } // end of while
+    close(newsockfd);//close connection  //TODO: CHECK IF THIS IS THE RIGHT LOCATION
+  } // end of while(1)
    
-  //I believe we should put these somewhere else 
-  
-  close(sockfd);
-  
+  //we never reach here  
   return 0; 
 }
