@@ -24,8 +24,8 @@ int httpResponse(char* message, char* response) {
   int content_type = -1; // use this to determine content type, -1:error 0:html 1:gif 2:jpeg
    //TODO:Check if we need any other types
   char* filename = NULL;
-  filename = strtok(message, " /"); //Note: this approach apparently messes up message, but lets use it for now as we don't use message later
-  filename = strtok(filename, " /"); //now token holds the filename TODO: Check if this holds for weird filenames
+  filename = strtok(message, "GET /"); //Note: this approach apparently messes up message, but lets use it for now as we don't use message later
+  filename = strtok(filename, " "); //now token holds the filename TODO: Check if this holds for weird filenames
   if(strstr(filename , ".html") != NULL){
     content_type = 0;
   } else if(strstr(filename , ".gif") != NULL){
@@ -34,9 +34,10 @@ int httpResponse(char* message, char* response) {
     content_type = 2;
   } else{
     content_type = -1; //unkown content type, return error
+    //printf("Filename: %s Content type: %d\n", filename, content_type); //Debugging: REMOVE THIS
     return -1;
   }
-  
+       // printf("Filename: %s Content type: %d\n", filename, content_type); //Debugging: REMOVE THIS
   //determine header content
   int response_pos = 0;
   //determine status
@@ -187,13 +188,15 @@ int main(int argc, char *argv[])
 
       int response_buffer_size = 2048; //TODO: Check how big this should be
       char response_buffer[response_buffer_size];
-      if(httpResponse(buffer, response_buffer) < 0) {
+      n = httpResponse(buffer, response_buffer);
+      if( n < 0) {
         close(newsockfd);//close connection
         close(sockfd);
         error("ERROR in httpResponse function");        
       }
 
-      if(write(newsockfd, response_buffer, response_buffer_size)) {
+      n = write(newsockfd, response_buffer, response_buffer_size);
+      if(n < 0) {
       //if(write(newsockfd, "HTTP/1.1 200 OK\nDate: Mon, 27 Jul 2009 12:28:53 GMT\nServer: Apache/2.2.14 (Win32)\nLast-Modified: Wed, 22 Jul 2009 19:15:56 GMT\nContent-Length: 88\nContent-Type: text/html\nConnection: Closed\n<html>\n<body>\n<h1>Hello, World!</h1>\n</body>\n</html>\n\n")) {
         close(newsockfd);//close connection
         close(sockfd);
