@@ -190,14 +190,14 @@ int main(int argc, char *argv[])
       if(httpResponse(buffer, response_buffer) < 0) {
         close(newsockfd);//close connection
         close(sockfd);
-        error("ERROR reading from socket");        
+        error("ERROR in httpResponse function");        
       }
 
       if(write(newsockfd, response_buffer, response_buffer_size)) {
       //if(write(newsockfd, "HTTP/1.1 200 OK\nDate: Mon, 27 Jul 2009 12:28:53 GMT\nServer: Apache/2.2.14 (Win32)\nLast-Modified: Wed, 22 Jul 2009 19:15:56 GMT\nContent-Length: 88\nContent-Type: text/html\nConnection: Closed\n<html>\n<body>\n<h1>Hello, World!</h1>\n</body>\n</html>\n\n")) {
         close(newsockfd);//close connection
         close(sockfd);
-        error("ERROR reading from socket");
+        error("ERROR writing to socket");
       }
     }
     close(newsockfd);//close connection  //TODO: CHECK IF THIS IS THE RIGHT LOCATION
