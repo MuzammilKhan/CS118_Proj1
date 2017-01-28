@@ -8,6 +8,7 @@
 #include <signal.h> /* signal name macros, and the kill() prototype */
 #include <time.h> // for date time when return http response
 
+
 void error(char *msg)
 {
     perror(msg);
@@ -48,47 +49,51 @@ int httpResponse(char* message, char* response) {
   FILE *fp;
   fp = fopen(filename, "r");
   if(fp == NULL){ //file requested can't be found or error opening file
-    response[response_pos] = "HTTP/1.1 404 Not Found\r\n";
-    response_pos = response_pos + 24;
+    strncpy(response + response_pos, "HTTP/1.1 404 Not Found\n", 23);
+    response_pos = response_pos + 23;
   } else { //everything ok
-    response[response_pos] = "HTTP/1.1 200 OK\r\n";
-    response_pos = response_pos + 17;
+    strncpy(response + response_pos, "HTTP/1.1 200 OK\n", 16);
+    
+    response_pos = response_pos + 16;
   }
 
   //Date
   //shown how to do this at: http://stackoverflow.com/questions/7548759/generate-a-date-string-in-http-response-date-format-in-c
-  char datetime[31];
+  char datetime[30];
   time_t now = time(0);
   struct tm tm = *gmtime(&now);
   strftime(datetime, sizeof(datetime), "%a, %d %b %b %Y %H:%M:%S %Z", &tm);
-  datetime[29] = "\r\n";
-  strncpy(response + response_pos, datetime, 31);
-  response_pos = response_pos + 31;  
+  datetime[29] = '\n';
+  
+
+  strncpy(response + response_pos, datetime, 30);
+  response_pos = response_pos + 30;  
 
   //Connection status
-  response[response_pos] = "Connection: close\r\n";
-  response_pos = response_pos + 19;
+  strncpy(response + response_pos, "Connection: close\n", 18);
+  response_pos = response_pos + 18;
 
   //Server field
   //do we need one of these? ex: Server: Apache/1.2.27
 
   //accept ranges
-  response[response_pos] = "Accept-Ranges: bytes\r\n"; //Todo: do we need another space?
-  response_pos = response_pos + 22;  
+   //Todo: do we need another space?
+  strncpy(response + response_pos, "Accept-Ranges: bytes\n", 21);
+  response_pos = response_pos + 21;  
 
   //content type
   switch(content_type) {
     case 0:
-      response[response_pos] = "Content-Type: text/html\r\n";
-      response_pos = response_pos + 25;  
+      strncpy(response + response_pos, "Content-Type: text/html\n", 24);
+      response_pos = response_pos + 24;  
       break;
     case 1:
-      response[response_pos] = "Content-Type: gif\r\n";
-      response_pos = response_pos + 19;  
+      strncpy(response + response_pos, "Content-Type: gif\n", 18);
+      response_pos = response_pos + 18;  
       break;
     case 2:
-      response[response_pos] = "Content-Type: jpeg\r\n";
-      response_pos = response_pos + 20;  
+      strncpy(response + response_pos, "Content-Type: jpeg\n" , 19);
+      response_pos = response_pos + 19;  
       break;
     default:
       break;
@@ -98,8 +103,8 @@ int httpResponse(char* message, char* response) {
   //ex: Last-Modified: Thu, 26 Jan 2017 21:32:00 GMT
 
   //empty line before message body TODO: check if necessary
-    response[response_pos] = "\r\n";
-    response_pos = response_pos + 2; 
+    response[response_pos] = '\n';
+    response_pos = response_pos + 1; 
 
   //attach message body
   int filechar;
@@ -116,9 +121,10 @@ int httpResponse(char* message, char* response) {
   fclose(fp);
 
   //finish with /r/n/r/n ?
-  response[response_pos] = "\r\n\r\n";
-  response_pos = response_pos + 4; 
-  return 0;
+  strncpy(response + response_pos, "\r\n\r\n\0" , 5);
+  //response[response_pos] = "\r\n\r\n\0";
+  response_pos = response_pos + 5; 
+  return response_pos;
 }
 
 int main(int argc, char *argv[])
@@ -152,6 +158,12 @@ int main(int argc, char *argv[])
   /* put sock to the set, s.t. we can monitor whether a new connection request arrives */
   FD_SET(sockfd, &active_fd_set);
   while (1) {
+  /* Initialize the set of active sockets */
+  //  FD_ZERO(&active_fd_set);
+    /* put sock to the set, s.t. we can monitor whether a new connection request arrives */
+  //  FD_SET(sockfd, &active_fd_set);
+
+
     /* Block until some sockets are active. Let N is #sockets+1 in active_fd_set */
     if (select(sockfd + 1, &active_fd_set, NULL, NULL, NULL) < 0) {
       close(newsockfd);//close connection
@@ -183,24 +195,26 @@ int main(int argc, char *argv[])
       //Disable for part b? //TODO: double check this
       
       //reply to client
-      n = write(newsockfd,"I got your message",18);
+      //n = write(newsockfd,"Sending File",12);
       if (n < 0){
         close(newsockfd);//close connection
         close(sockfd);        
         error("ERROR writing to socket");
       } 
- /*
+ 
       int response_buffer_size = 2048; //TODO: Check how big this should be
       char* response_buffer = malloc(response_buffer_size);
-      n = httpResponse(buffer, response_buffer);
-      if( n < 0) {
+      
+      //memset(response_buffer,'p',2048);
+
+      int response_size = httpResponse(buffer, response_buffer);
+      if( response_size < 0) {
         free(response_buffer);
         close(newsockfd);//close connection
         close(sockfd);
         error("ERROR in httpResponse function");        
       }
-
-      n = write(newsockfd, response_buffer, response_buffer_size);
+      n = write(newsockfd, response_buffer, response_size);
       if(n < 0) {
       //if(write(newsockfd, "HTTP/1.1 200 OK\nDate: Mon, 27 Jul 2009 12:28:53 GMT\nServer: Apache/2.2.14 (Win32)\nLast-Modified: Wed, 22 Jul 2009 19:15:56 GMT\nContent-Length: 88\nContent-Type: text/html\nConnection: Closed\n<html>\n<body>\n<h1>Hello, World!</h1>\n</body>\n</html>\n\n")) {
         free(response_buffer);
@@ -209,7 +223,7 @@ int main(int argc, char *argv[])
         error("ERROR writing to socket");
       }
       free(response_buffer);
-      */
+      
     }
     close(newsockfd);//close connection  //TODO: CHECK IF THIS IS THE RIGHT LOCATION
   } // end of while(1)
