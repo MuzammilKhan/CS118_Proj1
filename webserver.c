@@ -17,13 +17,17 @@ void error(char *msg)
 // Generate http response for the http message and store it in response.
 // Returns: 0 on success
 //        -1 on error
-int httpResponse(char* message, char* response) {
+int httpResponse(char* message, char* response) { 
+  //TODO: Fix this function, it segfaults. 
+  //we excpect only GET requests
+  //need to consider case where client does localhost:port/  , here use href showing files accessible?
+  //assuming we always use HTTP 1.1
 
   //parse message to determine encoding type of message body
   //assuming we always have a body for now TODO: Check if this is true and what to do if this is not so
   int content_type = -1; // use this to determine content type, -1:error 0:html 1:gif 2:jpeg
    //TODO:Check if we need any other types
-  char* filename = NULL;
+  char* filename = NULL; //the following probably fails if no filename and we want to do href stuff
   filename = strtok(message, "GET /"); //Note: this approach apparently messes up message, but lets use it for now as we don't use message later
   filename = strtok(filename, " "); //now token holds the filename TODO: Check if this holds for weird filenames
   if(strstr(filename , ".html") != NULL){
@@ -177,19 +181,20 @@ int main(int argc, char *argv[])
       printf("Here is the message: %s\n",buffer);
      
       //Disable for part b? //TODO: double check this
-      /*
+      
       //reply to client
       n = write(newsockfd,"I got your message",18);
       if (n < 0){
         close(newsockfd);//close connection
         close(sockfd);        
         error("ERROR writing to socket");
-      } */
-
+      } 
+ /*
       int response_buffer_size = 2048; //TODO: Check how big this should be
-      char response_buffer[response_buffer_size];
+      char* response_buffer = malloc(response_buffer_size);
       n = httpResponse(buffer, response_buffer);
       if( n < 0) {
+        free(response_buffer);
         close(newsockfd);//close connection
         close(sockfd);
         error("ERROR in httpResponse function");        
@@ -198,10 +203,13 @@ int main(int argc, char *argv[])
       n = write(newsockfd, response_buffer, response_buffer_size);
       if(n < 0) {
       //if(write(newsockfd, "HTTP/1.1 200 OK\nDate: Mon, 27 Jul 2009 12:28:53 GMT\nServer: Apache/2.2.14 (Win32)\nLast-Modified: Wed, 22 Jul 2009 19:15:56 GMT\nContent-Length: 88\nContent-Type: text/html\nConnection: Closed\n<html>\n<body>\n<h1>Hello, World!</h1>\n</body>\n</html>\n\n")) {
+        free(response_buffer);
         close(newsockfd);//close connection
         close(sockfd);
         error("ERROR writing to socket");
       }
+      free(response_buffer);
+      */
     }
     close(newsockfd);//close connection  //TODO: CHECK IF THIS IS THE RIGHT LOCATION
   } // end of while(1)
