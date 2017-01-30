@@ -37,63 +37,68 @@ int httpResponse(char* message, char* response) {
     content_type = 1;
   } else if(strstr(filename , ".jpeg") != NULL){
     content_type = 2;
+  } else if(strstr(filename , ".ico") != NULL){
+    content_type = 2;
   } else{
     content_type = -1; //unkown content type, return error
-    //printf("Filename: %s Content type: %d\n", filename, content_type); //Debugging: REMOVE THIS
     return -1;
   }
-       // printf("Filename: %s Content type: %d\n", filename, content_type); //Debugging: REMOVE THIS
+
   //determine header content
   int response_pos = 0;
+  int fileExists = 1;
   //determine status
   FILE *fp;
   fp = fopen(filename, "r");
   if(fp == NULL){ //file requested can't be found or error opening file
-    strncpy(response + response_pos, "HTTP/1.1 404 Not Found\n", 23);
-    response_pos = response_pos + 23;
+    strncpy(response + response_pos, "HTTP/1.1 404 Not Found\r\n", 24);
+    response_pos = response_pos + 24;
+    fileExists = 0;
+    content_type = 0; //we will return an html page in this case
   } else { //everything ok
-    strncpy(response + response_pos, "HTTP/1.1 200 OK\n", 16);
+    strncpy(response + response_pos, "HTTP/1.1 200 OK\r\n", 17);
     
-    response_pos = response_pos + 16;
+    response_pos = response_pos + 17;
   }
 
   //Date
   //shown how to do this at: http://stackoverflow.com/questions/7548759/generate-a-date-string-in-http-response-date-format-in-c
-  char datetime[30];
+  char datetime[31];
   time_t now = time(0);
   struct tm tm = *gmtime(&now);
   strftime(datetime, sizeof(datetime), "%a, %d %b %b %Y %H:%M:%S %Z", &tm);
-  datetime[29] = '\n';
+  datetime[29] = '\r';
+  datetime[30] = '\n';
   
 
-  strncpy(response + response_pos, datetime, 30);
-  response_pos = response_pos + 30;  
+  strncpy(response + response_pos, datetime, 31);
+  response_pos = response_pos + 31;  
 
   //Connection status
-  strncpy(response + response_pos, "Connection: close\n", 18);
-  response_pos = response_pos + 18;
+  strncpy(response + response_pos, "Connection: close\r\n", 19);
+  response_pos = response_pos + 19;
 
   //Server field
   //do we need one of these? ex: Server: Apache/1.2.27
 
   //accept ranges
    //Todo: do we need another space?
-  strncpy(response + response_pos, "Accept-Ranges: bytes\n", 21);
-  response_pos = response_pos + 21;  
+  strncpy(response + response_pos, "Accept-Ranges: bytes\r\n", 22);
+  response_pos = response_pos + 22;  
 
   //content type
   switch(content_type) {
     case 0:
-      strncpy(response + response_pos, "Content-Type: text/html\n", 24);
-      response_pos = response_pos + 24;  
+      strncpy(response + response_pos, "Content-Type: text/html\r\n", 25);
+      response_pos = response_pos + 25;  
       break;
     case 1:
-      strncpy(response + response_pos, "Content-Type: gif\n", 18);
-      response_pos = response_pos + 18;  
+      strncpy(response + response_pos, "Content-Type: gif\r\n", 19);
+      response_pos = response_pos + 19;  
       break;
     case 2:
-      strncpy(response + response_pos, "Content-Type: jpeg\n" , 19);
-      response_pos = response_pos + 19;  
+      strncpy(response + response_pos, "Content-Type: jpeg\r\n" , 20);
+      response_pos = response_pos + 20;  
       break;
     default:
       break;
@@ -103,26 +108,29 @@ int httpResponse(char* message, char* response) {
   //ex: Last-Modified: Thu, 26 Jan 2017 21:32:00 GMT
 
   //empty line before message body TODO: check if necessary
-    response[response_pos] = '\n';
-    response_pos = response_pos + 1; 
-
-  //attach message body
-  int filechar;
-  while(1)
-  {
-    filechar = fgetc(fp);
-    if( feof(fp) )
+    strncpy(response + response_pos, "\r\n", 2);
+    response_pos = response_pos + 2; 
+  if(fileExists) {
+    //attach message body
+    int filechar;
+    while(1)
     {
-     break ;
-    }
-    response[response_pos] = filechar;
-    response_pos = response_pos + 1;
-  }  
-  fclose(fp);
+      filechar = fgetc(fp);
+      if( feof(fp) )
+      {
+       break ;
+      }
+      response[response_pos] = filechar;
+      response_pos = response_pos + 1;
+    }  
+    fclose(fp);
+  }
+  else { //message for 404
+    strncpy(response + response_pos, "404 Not Found", 13);
+    response_pos = response_pos + 13;
+  }
 
-  //finish with /r/n/r/n ?
   strncpy(response + response_pos, "\r\n\r\n\0" , 5);
-  //response[response_pos] = "\r\n\r\n\0";
   response_pos = response_pos + 5; 
   return response_pos;
 }
@@ -184,7 +192,7 @@ int main(int argc, char *argv[])
       memset(buffer, 0, 512);    //reset memory
       
       //read client's message
-      n = read(newsockfd,buffer,512);
+      n = read(newsockfd,buffer,511);
       if (n < 0){
         close(newsockfd);//close connection
         close(sockfd);
@@ -215,14 +223,13 @@ int main(int argc, char *argv[])
         error("ERROR in httpResponse function");        
       }
       n = write(newsockfd, response_buffer, response_size);
+      free(response_buffer);
       if(n < 0) {
       //if(write(newsockfd, "HTTP/1.1 200 OK\nDate: Mon, 27 Jul 2009 12:28:53 GMT\nServer: Apache/2.2.14 (Win32)\nLast-Modified: Wed, 22 Jul 2009 19:15:56 GMT\nContent-Length: 88\nContent-Type: text/html\nConnection: Closed\n<html>\n<body>\n<h1>Hello, World!</h1>\n</body>\n</html>\n\n")) {
-        free(response_buffer);
         close(newsockfd);//close connection
         close(sockfd);
         error("ERROR writing to socket");
       }
-      free(response_buffer);
       
     }
     close(newsockfd);//close connection  //TODO: CHECK IF THIS IS THE RIGHT LOCATION
