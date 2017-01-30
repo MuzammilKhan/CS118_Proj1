@@ -28,6 +28,7 @@ int httpResponse(char* message, char* response) {
   //assuming we always have a body for now TODO: Check if this is true and what to do if this is not so
   int content_type = -1; // use this to determine content type, -1:error 0:html 1:gif 2:jpeg
    //TODO:Check if we need any other types
+  int force404 = 0;
   char* filename = NULL; //the following probably fails if no filename and we want to do href stuff
   filename = strtok(message, "GET /"); //Note: this approach apparently messes up message, but lets use it for now as we don't use message later
   filename = strtok(filename, " "); //now token holds the filename TODO: Check if this holds for weird filenames
@@ -40,8 +41,8 @@ int httpResponse(char* message, char* response) {
   } else if(strstr(filename , ".ico") != NULL){
     content_type = 2;
   } else{
-    content_type = -1; //unkown content type, return error
-    return -1;
+    content_type = 0; //unkown content type, return error, gonna return 404
+    force404 = 1;
   }
 
   //determine header content
@@ -50,7 +51,7 @@ int httpResponse(char* message, char* response) {
   //determine status
   FILE *fp;
   fp = fopen(filename, "r");
-  if(fp == NULL){ //file requested can't be found or error opening file
+  if(fp == NULL || force404){ //file requested can't be found or error opening file
     strncpy(response + response_pos, "HTTP/1.1 404 Not Found\r\n", 24);
     response_pos = response_pos + 24;
     fileExists = 0;
