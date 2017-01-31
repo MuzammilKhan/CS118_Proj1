@@ -36,7 +36,7 @@ int httpResponse(char* message, char* response) {
     content_type = 0;
   } else if(strstr(filename , ".gif") != NULL){
     content_type = 1;
-  } else if(strstr(filename , ".jpeg") != NULL){
+  } else if((strstr(filename , ".jpeg") != NULL) || (strstr(filename , ".jpg") != NULL)){
     content_type = 2;
   } else if(strstr(filename , ".ico") != NULL){
     content_type = 2;
