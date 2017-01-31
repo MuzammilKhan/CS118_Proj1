@@ -18,7 +18,7 @@ void error(char *msg)
 // Generate http response for the http message and store it in response.
 // Returns: 0 on success
 //        -1 on error
-int httpResponse(char* message, char* response) { 
+int httpResponse(char* message, char* response, int response_buffer_size, int sock_fd, struct sockaddr * dest_addr, int dest_len) { 
   //TODO: Fix this function, it segfaults. 
   //we excpect only GET requests
   //need to consider case where client does localhost:port/  , here use href showing files accessible?
@@ -39,7 +39,7 @@ int httpResponse(char* message, char* response) {
   } else if((strstr(filename , ".jpeg") != NULL) || (strstr(filename , ".jpg") != NULL)){
     content_type = 2;
   } else if(strstr(filename , ".ico") != NULL){
-    content_type = 2;
+    content_type = 3;
   } else{
     content_type = 0; //unkown content type, return error, gonna return 404
     force404 = 1;
@@ -101,6 +101,10 @@ int httpResponse(char* message, char* response) {
       strncpy(response + response_pos, "Content-Type: jpeg\r\n" , 20);
       response_pos = response_pos + 20;  
       break;
+    case 3:
+      strncpy(response + response_pos, "Content-Type: image/x-icon\r\n" , 28);
+      response_pos = response_pos + 28;  
+      break;
     default:
       break;
   }
@@ -116,13 +120,19 @@ int httpResponse(char* message, char* response) {
     int filechar;
     while(1)
     {
-      filechar = fgetc(fp);
-      if( feof(fp) )
-      {
-       break ;
+      if(response_pos > response_buffer_size - 8) { //-8 to make sure there is space for ending cr & lfs
+        sendto(sock_fd, response, response_pos, 0, dest_addr, dest_len);
+        response_pos = 0;
+      } 
+      else {
+            filechar = fgetc(fp);
+            if( feof(fp) )
+            {
+             break ;
+            }
+            response[response_pos] = filechar;
+            response_pos = response_pos + 1;
       }
-      response[response_pos] = filechar;
-      response_pos = response_pos + 1;
     }  
     fclose(fp);
   }
@@ -216,7 +226,7 @@ int main(int argc, char *argv[])
       
       //memset(response_buffer,'p',2048);
 
-      int response_size = httpResponse(buffer, response_buffer);
+      int response_size = httpResponse(buffer, response_buffer, response_buffer_size, newsockfd, (struct sockaddr*) &cli_addr, &clilen);
       if( response_size < 0) {
         free(response_buffer);
         close(newsockfd);//close connection
