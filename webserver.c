@@ -7,7 +7,7 @@
 #include <sys/wait.h>   /* for the waitpid() system call */
 #include <signal.h> /* signal name macros, and the kill() prototype */
 #include <time.h> // for date time when return http response
-
+#include <unistd.h>
 
 void error(char *msg)
 {
@@ -119,9 +119,11 @@ int httpResponse(char* message, char* response, int response_buffer_size, int so
     //attach message body
     int filechar;
     while(1)
-    {
+    {  //testing cases
       if(response_pos > response_buffer_size - 8) { //-8 to make sure there is space for ending cr & lfs
-        sendto(sock_fd, response, response_pos, 0, dest_addr, dest_len);
+       //n = write(newsockfd, response_buffer, response_size);
+        int n = write(sock_fd , response , response_pos);
+        //sendto(sock_fd, response, response_pos, 0, dest_addr, dest_len);
         response_pos = 0;
       } 
       else {
