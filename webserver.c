@@ -18,7 +18,7 @@ void error(char *msg)
 // Generate http response for the http message and store it in response.
 // Returns: 0 on success
 //        -1 on error
-int httpResponse(char* message, char* response, int response_buffer_size, int sock_fd, struct sockaddr * dest_addr, int dest_len) { 
+int httpResponse(char* message, char* response, int response_buffer_size, int sock_fd) { 
   //TODO: Fix this function, it segfaults. 
   //we excpect only GET requests
   //need to consider case where client does localhost:port/  , here use href showing files accessible?
@@ -139,8 +139,8 @@ int httpResponse(char* message, char* response, int response_buffer_size, int so
     fclose(fp);
   }
   else { //message for 404
-    strncpy(response + response_pos, "404 Not Found", 13);
-    response_pos = response_pos + 13;
+    strncpy(response + response_pos, "<html><body><h1>404 Not Found</h1></body></html>", 48);
+    response_pos = response_pos + 48;
   }
 
   strncpy(response + response_pos, "\r\n\r\n\0" , 5);
@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
       
       //memset(response_buffer,'p',2048);
 
-      int response_size = httpResponse(buffer, response_buffer, response_buffer_size, newsockfd, (struct sockaddr*) &cli_addr, &clilen);
+      int response_size = httpResponse(buffer, response_buffer, response_buffer_size, newsockfd);
       if( response_size < 0) {
         free(response_buffer);
         close(newsockfd);//close connection
