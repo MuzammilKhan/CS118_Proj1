@@ -164,6 +164,14 @@ int httpResponse(char* message, char* response, int response_buffer_size, int so
 
     DIR* dir;
     struct dirent *entry;
+    char * justfilename = filename;
+    if(strcmp(filename, ".") != 0 ){
+      while(strstr(justfilename , "/") != NULL){
+              justfilename = justfilename+ 1;
+            }
+
+    }
+
     dir = opendir(filename);
     if(dir != NULL){
       strncpy(response + response_pos, "<html><head>Files at this location: \n</head>\n" , 45);
@@ -174,11 +182,10 @@ int httpResponse(char* message, char* response, int response_buffer_size, int so
             int n = write(sock_fd , response , response_pos);
             response_pos = 0;
           } 
-          //printf ("%s\n", entry->d_name);
           strncpy(response + response_pos, "<a href=\"" , 9);
           response_pos = response_pos + 9; 
-          strncpy(response + response_pos, filename , strlen(filename));
-          response_pos = response_pos + strlen(filename); 
+          strncpy(response + response_pos, justfilename , strlen(justfilename));
+          response_pos = response_pos + strlen(justfilename); 
           strncpy(response + response_pos, "/" , 1);
           response_pos = response_pos + 1;           
           strncpy(response + response_pos, entry->d_name, strlen(entry->d_name));
@@ -191,7 +198,7 @@ int httpResponse(char* message, char* response, int response_buffer_size, int so
           response_pos = response_pos + 5;     
       }
     }
-    close(dir);
+    closedir(dir); 
     strncpy(response + response_pos, "</head></html>" , 14);
           response_pos = response_pos + 14; 
     } else {
