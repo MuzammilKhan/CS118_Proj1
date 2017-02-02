@@ -8,6 +8,8 @@
 #include <signal.h> /* signal name macros, and the kill() prototype */
 #include <time.h> // for date time when return http response
 #include <unistd.h>
+#include <dirent.h>
+#include <sys/stat.h> //to check if a file is a directory
 
 void error(char *msg)
 {
@@ -27,6 +29,7 @@ int httpResponse(char* message, char* response, int response_buffer_size, int so
   //parse message to determine encoding type of message body
   int content_type = -1; // use this to determine content type, -1:error 0:html 1:gif 2:jpeg
   int force404 = 0;
+  int forceindex = 0;
   char filename[1024]; //assuming filename/path is no larger than 1024 bytes
   sscanf(message, "%*s %*c %s %*8s", filename);
   if(strstr(filename , ".html") != NULL){
@@ -38,11 +41,22 @@ int httpResponse(char* message, char* response, int response_buffer_size, int so
   } else if(strstr(filename , ".ico") != NULL){
     content_type = 3;
   } else if(strstr(filename , "HTTP/1.1") != NULL){ //trying to access root directory
+    strncpy(filename, ".\0", 2);
     content_type = 0;
+    forceindex = 1;
+  } else if(strstr(filename , ".") != NULL){ //unsupported filetype
+    content_type = 0; //unkown content type
     force404 = 1;
-  } else{
-    content_type = 0; //unkown content type, return error, gonna return 404
-    force404 = 1;
+  } else{ //possibly folder
+    struct stat sb;
+    if(stat(".", &sb) == 0 && S_ISDIR(sb.st_mode)){ //if we have access and it is a directory
+      content_type = 0;
+      forceindex = 1;
+    } else {
+      content_type = 0; //unkown content type
+      force404 = 1;
+    }
+
   }
 
   //determine header content
@@ -51,7 +65,7 @@ int httpResponse(char* message, char* response, int response_buffer_size, int so
   //determine status
   FILE *fp;
   fp = fopen(filename, "r");
-  if(fp == NULL || force404 ){ //file requested can't be found or error opening file
+  if(fp == NULL || force404){ //file requested can't be found or error opening file
     strncpy(response + response_pos, "HTTP/1.1 404 Not Found\r\n", 24);
     response_pos = response_pos + 24;
     fileExists = 0;
@@ -115,7 +129,7 @@ int httpResponse(char* message, char* response, int response_buffer_size, int so
   //empty line before message body TODO: check if necessary
     strncpy(response + response_pos, "\r\n", 2);
     response_pos = response_pos + 2; 
-  if(fileExists) {
+  if(fileExists && !forceindex) {
     //attach message body
     int filechar;
     while(1)
@@ -138,9 +152,56 @@ int httpResponse(char* message, char* response, int response_buffer_size, int so
     }  
     fclose(fp);
   }
-  else { //message for 404
+  else if(force404){ //message for 404
+    //response_pos = 0;
+    //strncpy(response + response_pos, "HTTP/1.1 404 Not Found\r\n", 24);
+    //response_pos = response_pos + 24;
+    //      strncpy(response + response_pos, "Content-Type: text/html\r\n", 25);
+    //response_pos = response_pos + 25;  
     strncpy(response + response_pos, "<html><body><h1>404 Not Found</h1></body></html>", 48);
     response_pos = response_pos + 48;
+  }else { //message for index or forceindex
+    strncpy(response + response_pos, "<html><head>Files at this location: \n</head>\n" , 45);
+    response_pos = response_pos + 45; 
+    DIR* dir;
+    struct dirent *entry;
+    dir = opendir(filename);
+    if(dir != NULL){
+      while ((entry = readdir (dir)) != NULL) {  
+        if (entry->d_name[0] != '.' && entry->d_name[strlen(entry->d_name)-1] != '~'){// strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0 ){
+          if(response_pos > response_buffer_size - 40 - strlen(filename) - 2 * strlen(entry->d_name)) { // chunking and  make sure there is space for ending cr & lfs and other html
+            int n = write(sock_fd , response , response_pos);
+            response_pos = 0;
+          } 
+          //printf ("%s\n", entry->d_name);
+          strncpy(response + response_pos, "<a href=\"" , 9);
+          response_pos = response_pos + 9; 
+          strncpy(response + response_pos, filename , strlen(filename));
+          response_pos = response_pos + strlen(filename); 
+          strncpy(response + response_pos, "/" , 1);
+          response_pos = response_pos + 1;           
+          strncpy(response + response_pos, entry->d_name, strlen(entry->d_name));
+          response_pos = response_pos + strlen(entry->d_name); 
+          strncpy(response + response_pos, "\">" , 2);
+          response_pos = response_pos + 2; 
+          strncpy(response + response_pos, entry->d_name, strlen(entry->d_name));
+          response_pos = response_pos + strlen(entry->d_name);   
+          strncpy(response + response_pos, "</a>\n" , 5);
+          response_pos = response_pos + 5;     
+      }
+    }
+    close(dir);
+    strncpy(response + response_pos, "</head></html>" , 14);
+          response_pos = response_pos + 14; 
+    } else {
+      //response_pos = 0;
+      //strncpy(response + response_pos, "HTTP/1.1 404 Not Found\r\n", 24);
+      //response_pos = response_pos + 24;
+      //      strncpy(response + response_pos, "Content-Type: text/html\r\n", 25);
+      //response_pos = response_pos + 25;  
+      strncpy(response + response_pos, "<html><body><h1>404 Not Found</h1></body></html>", 48);
+      response_pos = response_pos + 48;    
+    }
   }
 
   strncpy(response + response_pos, "\r\n\r\n\0" , 5);
