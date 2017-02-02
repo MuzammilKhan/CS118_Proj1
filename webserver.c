@@ -161,12 +161,13 @@ int httpResponse(char* message, char* response, int response_buffer_size, int so
     strncpy(response + response_pos, "<html><body><h1>404 Not Found</h1></body></html>", 48);
     response_pos = response_pos + 48;
   }else { //message for index or forceindex
-    strncpy(response + response_pos, "<html><head>Files at this location: \n</head>\n" , 45);
-    response_pos = response_pos + 45; 
+
     DIR* dir;
     struct dirent *entry;
     dir = opendir(filename);
     if(dir != NULL){
+      strncpy(response + response_pos, "<html><head>Files at this location: \n</head>\n" , 45);
+      response_pos = response_pos + 45; 
       while ((entry = readdir (dir)) != NULL) {  
         if (entry->d_name[0] != '.' && entry->d_name[strlen(entry->d_name)-1] != '~'){// strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0 ){
           if(response_pos > response_buffer_size - 40 - strlen(filename) - 2 * strlen(entry->d_name)) { // chunking and  make sure there is space for ending cr & lfs and other html
